@@ -27,6 +27,7 @@ public class Usuario implements UserDetails {
     private String username;
     private String password;
     private String role; // "USER" o "ADMIN"
+    private boolean activate; //flag de cuenta activada
 
 
 
