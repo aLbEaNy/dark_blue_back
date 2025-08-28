@@ -5,7 +5,7 @@ import personal.darkblueback.entities.Perfil;
 
 import java.util.Optional;
 
-public interface PerfilRepository extends MongoRepository<Perfil,String> {
+public interface PerfilRepository extends MongoRepository<Perfil,Long> {
     Optional<Perfil> findByUsername(String username);
     Optional<Perfil> findByNickname(String nickname);
 }

@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
+import personal.darkblueback.entities.Perfil;
 import personal.darkblueback.entities.Usuario;
 import personal.darkblueback.exception.CustomException;
 import personal.darkblueback.exception.LoginException;
@@ -30,6 +31,8 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final PerfilRepository perfilRepository;
+    private final PerfilService perfilService;
+
 
     public String login (AuthRequest request) {
 
@@ -37,9 +40,7 @@ public class AuthService {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
-
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
             String token = jwtService.generateToken(userDetails);
             System.out.println(token);
             return token;
@@ -56,13 +57,18 @@ public class AuthService {
 
         Usuario newUser = new Usuario(
                 null,
+                request.getNickname(),
                 request.getUsername(),
                 passwordEncoder.encode(request.getPassword()),
+                "/avatar/user.png",
                 "ROLE_USER",
                 false
         );
         usuarioRepository.save(newUser);
         System.out.println("Añadido "+ newUser.getUsername() + " a la BD");
+        //Crear perfil
+        Perfil perfil = perfilService.perfil(newUser);
+        perfilRepository.save(perfil);
         //token de activacion de cuenta
         return jwtService.generateActivationToken(request.getUsername());
     }
@@ -99,6 +105,13 @@ public class AuthService {
         user.setActivate(true);
         usuarioRepository.save(user);
         return true;
+    }
+    public Usuario getUsuarioByUsername(String username) {
+        return usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException("No existe usuario con username: " + username));
+    }
+    public void saveUsuario(Usuario usuario) {
+        usuarioRepository.save(usuario);
     }
 }
 

@@ -24,8 +24,10 @@ public class Usuario implements UserDetails {
     @Id
     private String id;
 
+    private String nickname;
     private String username;
     private String password;
+    private String avatar = "/avatar/user.png";
     private String role; // "USER" o "ADMIN"
     private boolean activate; //flag de cuenta activada
 
