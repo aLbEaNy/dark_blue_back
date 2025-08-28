@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import personal.darkblueback.model.Stats;
 
 @Getter
 @Setter
@@ -21,9 +22,14 @@ public class Perfil {
 
     private String nickname;
 
-    private int score;
+    private String avatar = "/avatar/user.png";
 
-    private int stage;
+    private Stats stats;
+
+    private String idActualGame = null;
+
+
+
 
 
 }

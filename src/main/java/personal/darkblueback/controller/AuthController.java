@@ -1,15 +1,28 @@
 package personal.darkblueback.controller;
 
-import jakarta.annotation.Nullable;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
+import personal.darkblueback.entities.Perfil;
+import personal.darkblueback.entities.Usuario;
 import personal.darkblueback.model.*;
 import personal.darkblueback.security.JwtService;
 import personal.darkblueback.services.AuthService;
+import personal.darkblueback.services.PerfilService;
 
-import java.util.Random;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -19,62 +32,150 @@ public class AuthController {
     private final AuthService authService;
     private final JwtService jwtService;
 
+    private final String CLIENT_ID = "1076915317631-ogahf76hk4m8dlhuibsdnr6fv27kph7h.apps.googleusercontent.com";
+    private final String CLIENT_SECRET = "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";
+    private final String REDIRECT_URI = "postmessage"; // obligatorio para popup OAuth
+    private final PasswordEncoder passwordEncoder;
+    private final PerfilService perfilService;
+
+    @PostMapping("/google")
+    public ResponseEntity<IRestMessage> googleLogin(@RequestBody Map<String, String> body) {
+        String code = body.get("code");
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("code", code);
+        params.add("client_id", CLIENT_ID);
+        params.add("client_secret", CLIENT_SECRET);
+        params.add("redirect_uri", REDIRECT_URI);
+        params.add("grant_type", "authorization_code");
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+
+        // 1. Intercambiar code por tokens
+        ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(
+                "https://oauth2.googleapis.com/token",
+                request,
+                Map.class
+        );
+
+        String idToken = (String) tokenResponse.getBody().get("id_token");
+        System.out.println("idToken Google. ------------------> "+idToken);
+
+        // 2. Decodificar el id_token (JWT) → datos usuario
+        String[] parts = idToken.split("\\.");
+        String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]));
+
+        Map<String, Object> payload;
+        try {
+            payload = new ObjectMapper().readValue(payloadJson, Map.class);
+        } catch (JsonProcessingException e) {
+            return ResponseEntity.ok(new IRestMessage(400,"Error parsing Google ID token payload",null));
+        }
+
+        // Datos básicos del usuario
+        String email = (String) payload.get("email");
+        String picture = (String) payload.get("picture");
+        String name = (String) payload.get("name");
+        System.out.println("email Google. ------------------> "+email);
+        System.out.println("picture Google. ------------------> "+picture);
+        System.out.println("name Google. ------------------> "+name);
+
+        // 3. ... JWT o guardar usuario en DB
+        if (!authService.emailExist(email)){
+            // Se registra por primera vez y se hace login
+            Usuario newUser = new Usuario(
+                    null,
+                    name.substring(0,7),
+                    email,
+                    passwordEncoder.encode("Google1234!"),
+                    picture,
+                    "ROLE_USER",
+                    true
+            );
+            authService.saveUsuario(newUser);
+            String token = jwtService.generateToken(newUser);
+            System.out.println("----------- token ------------>  "+token);
+            Perfil perfil = perfilService.perfil(newUser);
+
+
+            return ResponseEntity.ok(new IRestMessage(0,"envio token de sesion", new AuthResponse(token,perfil)));
+        }
+
+        return ResponseEntity.ok(new IRestMessage(0,"envio token de sesion",
+                new AuthResponse(jwtService.generateToken(authService.getUsuarioByUsername(email)),
+                        perfilService.perfil(authService.getUsuarioByUsername(email)))));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<IRestMessage> login(@RequestBody @Valid AuthRequest request) {
-
-        System.out.println("request login--------------------- "+request);
+        System.out.println("request login--------------------- " + request);
+        //TODO devolver datos de cliente y perfil
         String token = authService.login(request);
+        Usuario user = authService.getUsuarioByUsername(request.getUsername());
+
+
 
         return ResponseEntity.ok(new IRestMessage(
-                0,"envio token de sesion", new AuthResponse(token)
+                0, "envio token de sesion", new AuthResponse(token, perfilService.perfil(user))
         ));
     }
 
-    @PostMapping("/register")// El @Valid dispara exception MethodArgumentNotValidException
-    public ResponseEntity<IRestMessage> register(@RequestBody @Valid RegisterRequest request){
-
+    @PostMapping("/register")
+    public ResponseEntity<IRestMessage> register(@RequestBody @Valid RegisterRequest request) {
         DataRegister datos = authService.register(request);
         return ResponseEntity.ok(new IRestMessage(
-                0,"Registro ok, se envía token y code", datos
+                0, "Registro ok, se envía token y code", datos
         ));
     }
+
     @PostMapping("/validateCodeActivation")
     public ResponseEntity<Boolean> validateCodeActivation(@RequestBody ActivationData aData) {
-        System.out.println("--------  aData vale ----------  "+aData.toString());
+        System.out.println("--------  aData vale ----------  " + aData);
         Boolean result = jwtService.isActivationTokenValid(
-                aData.getToken(), aData.getCode(), aData.getEmail());
-        System.out.println("---------------------------------- "+ result);
-        if(result){
+                aData.getToken(), aData.getCode(), aData.getEmail()
+        );
+        System.out.println("---------------------------------- " + result);
+        if (result) {
             authService.activateAccount(aData.getEmail());
         }
         return ResponseEntity.ok(result);
     }
+
     @GetMapping("/resendToken")
-    public ResponseEntity<IRestMessage> reenviarTokenActivacion(@RequestParam String username, @RequestParam boolean activation) {
-        if( activation){
-            DataRegister datos = jwtService.generateActivationToken(username);
+    public ResponseEntity<IRestMessage> reenviarTokenActivacion(@RequestParam String username, @RequestParam(required = false) boolean activation) {
+        if (Boolean.TRUE.equals(activation)) {// solo si viene y es true
+            DataRegister datos = jwtService.generateActivationToken(username);//token y code
             return ResponseEntity.ok(new IRestMessage(
-                    0,"Se reenvía token y code", datos));
+                    0, "Se reenvía token y code", datos));
         } else {
-            //TODO token normal de sesion
-            return ResponseEntity.ok(new IRestMessage(1, "* Error al reenviar el token de activación.",null));
+            //Compruebo usuario y si existe y devuelvo token
+            Usuario user = authService.getUsuarioByUsername(username);
+            String token = jwtService.generateToken(user);
+            Map<String, String> datos = new HashMap<>();
+            datos.put("token", token);
+            return ResponseEntity.ok(new IRestMessage(0,"se reenvía token de sesion", datos));
         }
     }
+
     @GetMapping("/nickname")
     public ResponseEntity<IRestMessage> verificarNickname(@RequestParam String nickname) {
         if (authService.nicknameExist(nickname)) {
-            return ResponseEntity.ok(new IRestMessage(0, "* El nickname ya está en uso.",null));
+            return ResponseEntity.ok(new IRestMessage(0, "* El nickname ya está en uso.", null));
         } else {
-            return ResponseEntity.ok(new IRestMessage(1, "* El nickname está disponible.",null));
+            return ResponseEntity.ok(new IRestMessage(1, "* El nickname está disponible.", null));
         }
     }
 
     @GetMapping("/email")
     public ResponseEntity<IRestMessage> verificarEmail(@RequestParam String email) {
         if (authService.emailExist(email)) {
-            return ResponseEntity.ok(new IRestMessage(0, "* El email ya está en uso.",null));
+            return ResponseEntity.ok(new IRestMessage(0, "* El email ya está en uso.", null));
         } else {
-            return ResponseEntity.ok(new IRestMessage(1, "* El email está disponible.",null));
+            return ResponseEntity.ok(new IRestMessage(1, "* El email está disponible.", null));
         }
     }
 }
