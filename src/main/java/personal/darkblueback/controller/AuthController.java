@@ -36,14 +36,15 @@ public class AuthController {
     private final AuthService authService;
     private final JwtService jwtService;
     private final GmailService gmailService;
+    private final PasswordEncoder passwordEncoder;
+    private final PerfilService perfilService;
 
     @Value( "${google.CLIENT_ID}")
     private String CLIENT_ID;
     @Value( "${google.CLIENT_SECRET}")
     private String CLIENT_SECRET;
-    private final String REDIRECT_URI = "postmessage"; // obligatorio para popup OAuth
-    private final PasswordEncoder passwordEncoder;
-    private final PerfilService perfilService;
+    private String REDIRECT_URI = "postmessage"; // obligatorio para popup OAuth
+
 
     @PostMapping("/google")
     public ResponseEntity<IRestMessage> googleLogin(@RequestBody Map<String, String> body) {
