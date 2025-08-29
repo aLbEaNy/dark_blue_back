@@ -2,8 +2,10 @@ package personal.darkblueback.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,9 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import personal.darkblueback.entities.Perfil;
 import personal.darkblueback.entities.Usuario;
+import personal.darkblueback.exception.CustomException;
 import personal.darkblueback.model.*;
 import personal.darkblueback.security.JwtService;
 import personal.darkblueback.services.AuthService;
+import personal.darkblueback.services.GmailService;
 import personal.darkblueback.services.PerfilService;
 
 import java.util.Base64;
@@ -31,12 +35,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtService jwtService;
-
-    private final String CLIENT_ID = "1076915317631-ogahf76hk4m8dlhuibsdnr6fv27kph7h.apps.googleusercontent.com";
-    private final String CLIENT_SECRET = "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";
-    private final String REDIRECT_URI = "postmessage"; // obligatorio para popup OAuth
+    private final GmailService gmailService;
     private final PasswordEncoder passwordEncoder;
     private final PerfilService perfilService;
+
+    @Value( "${google.CLIENT_ID}")
+    private String CLIENT_ID;
+    @Value( "${google.CLIENT_SECRET}")
+    private String CLIENT_SECRET;
+    private String REDIRECT_URI = "postmessage"; // obligatorio para popup OAuth
+
 
     @PostMapping("/google")
     public ResponseEntity<IRestMessage> googleLogin(@RequestBody Map<String, String> body) {
@@ -127,6 +135,12 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<IRestMessage> register(@RequestBody @Valid RegisterRequest request) {
         DataRegister datos = authService.register(request);
+        // Envía el código al email
+        try {
+            gmailService.sendVerificationCode(request.getUsername(), datos.getCodeActivation());
+        } catch (MessagingException e) {
+            throw new CustomException(e.getMessage());
+        }
         return ResponseEntity.ok(new IRestMessage(
                 0, "Registro ok, se envía token y code", datos
         ));
@@ -149,6 +163,12 @@ public class AuthController {
     public ResponseEntity<IRestMessage> reenviarTokenActivacion(@RequestParam String username, @RequestParam(required = false) boolean activation) {
         if (Boolean.TRUE.equals(activation)) {// solo si viene y es true
             DataRegister datos = jwtService.generateActivationToken(username);//token y code
+            // Envía el código al email
+            try {
+                gmailService.sendVerificationCode(username, datos.getCodeActivation());
+            } catch (MessagingException e) {
+                throw new CustomException(e.getMessage());
+            }
             return ResponseEntity.ok(new IRestMessage(
                     0, "Se reenvía token y code", datos));
         } else {
