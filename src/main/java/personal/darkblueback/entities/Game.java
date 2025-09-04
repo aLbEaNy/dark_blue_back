@@ -6,8 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import personal.darkblueback.model.game.Movimiento;
-import personal.darkblueback.model.game.Tablero;
+import personal.darkblueback.model.game.Board;
+import personal.darkblueback.model.game.GamePhase;
+import personal.darkblueback.model.game.Movement;
 
 import java.util.List;
 
@@ -19,20 +20,25 @@ import java.util.List;
 public class Game {
 
     @Id
-    private String id;
+    private String id; //gameId lo genera mongoDB
 
     private int stage; // para el modo campaña del juego
-    private String player;   // nickname del jugador humano
-    private String maquina = "IA"; // siempre fijo
+    private GamePhase phase = GamePhase.PLACEMENT;
+    private String player1;   // nickname del jugador humano
+    private String player2; // será en modo campaña el boos de la IA
 
-    private String turnoDe; // "player" o "IA"
+    private String turn; // "${nickname}" o "${boss}"
 
     private Boolean isEnd; // false(en curso)
 
-    private Tablero tableroPlayer; // tablero del jugador humano
-    private Tablero tableroIA;     // tablero generado aleatoriamente
+    private Board boardPlayer1;
+    private Board boardPlayer2;
 
-    private List<Movimiento> movimientos; // historial
-    private String ganador; // "player" o "IA"
+    private boolean readyPlayer1;
+    private boolean readyPlayer2;
+
+
+    private List<Movement> moves; // historial
+    private String winner; // "${nickname}" o "${boss}"
 }
 

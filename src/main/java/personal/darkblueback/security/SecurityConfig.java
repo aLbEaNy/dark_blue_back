@@ -72,8 +72,7 @@ public class SecurityConfig {
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers.frameOptions(frame -> frame.disable())) // permitir iframes (para H2)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**","/h2-console/**").permitAll() // pública para login/register
-                        //.requestMatchers(HttpMethod.GET,"/evaluaciones/*/promedio").hasRole("PROFESOR") // * para un solo argumento variable
+                        .requestMatchers("/auth/**","/media/**","/game/**").permitAll() // pública para login/register
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

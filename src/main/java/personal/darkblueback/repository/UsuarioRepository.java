@@ -6,6 +6,6 @@ import personal.darkblueback.entities.Usuario;
 
 import java.util.Optional;
 
-public interface UsuarioRepository extends MongoRepository<Usuario, Long> {
+public interface UsuarioRepository extends MongoRepository<Usuario, String> {
     Optional<Usuario> findByUsername(String username);
 }

@@ -57,7 +57,7 @@ public class AuthService {
                 request.getNickname(),
                 request.getUsername(),
                 passwordEncoder.encode(request.getPassword()),
-                "/avatar/user.png",
+                "images/user.png",
                 "ROLE_USER",
                 false
         );

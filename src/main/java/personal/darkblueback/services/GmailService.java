@@ -38,7 +38,7 @@ public class GmailService {
             helper.setText(htmlBody, true); // true = HTML
 
             // Adjuntar el logo
-            ClassPathResource logo = new ClassPathResource("static/images/logoDarkBlueLetras2.png");
+            ClassPathResource logo = new ClassPathResource("static/media/images/logoDarkBlueLetras2.png");
             helper.addInline("logo", logo);
 
             mailSender.send(message);
