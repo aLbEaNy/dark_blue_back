@@ -11,9 +11,8 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class Barco {
-    private String tipo; // acorazado, destructor, submarino
-    private int tamaño;
-    private List<String> posiciones; // ej: ["A1","A2","A3"]
-    private boolean hundido;
+public class Board {
+
+    private List<Submarine> submarines;
+    private List<Shot> shots; // ej: {coord:"A5", hit:true, .....}
 }

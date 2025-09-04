@@ -135,6 +135,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<IRestMessage> register(@RequestBody @Valid RegisterRequest request) {
         DataRegister datos = authService.register(request);
+        System.out.println("--------  datos codeActivation ----------  " + datos.getCodeActivation());
         // Envía el código al email
         try {
             gmailService.sendVerificationCode(request.getUsername(), datos.getCodeActivation());
