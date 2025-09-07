@@ -22,7 +22,7 @@ public class Perfil {
 
     private String nickname;
 
-    private String avatar = "/avatar/user.png";
+    private String avatar;
 
     private Stats stats;
 

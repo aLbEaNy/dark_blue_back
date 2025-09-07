@@ -1,44 +1,40 @@
 package personal.darkblueback.security;
 
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.impl.lang.Function;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import personal.darkblueback.entities.Usuario;
 import personal.darkblueback.model.DataRegister;
 
 import java.security.Key;
 import java.util.Date;
 import java.util.Random;
-import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class JwtService {
 
+
     private static final String SECRET_KEY = "clave_super_secreta_que_debe_ser_larga_y_segura_para_el_hmac_sha_okokokokok";
+
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
     //Token normal para sesion/autenticacion
-    public String generateToken(UserDetails userDetails) {
-        // Extraer el rol como String (asumimos que solo hay un rol)
-        String role = userDetails.getAuthorities().stream()
-                .findFirst()
-                .map(GrantedAuthority::getAuthority)
-                .orElse("ROLE_USER");
+    public String generateToken(Usuario user) {
 
         return Jwts.builder()
-                .setSubject(userDetails.getUsername())
-                .claim("role", role)  // Guardamos solo el rol como String
+                .setSubject(user.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 8)) // 8 horas
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
-    // Token para activación de cuenta con código (30 minutos de validez)
+    // Token para activación de cuenta con código (10 minutos de validez)
     public DataRegister generateActivationToken(String username) {
 
         //Codigo de 6 dígitos aleatorio
@@ -48,7 +44,7 @@ public class JwtService {
                 .setSubject(username)
                 .claim("activationCode", String.valueOf(code))
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 30)) // 30 minutos
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 10)) // 10 minutos
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
         return new DataRegister(token, String.valueOf(code));
@@ -70,10 +66,10 @@ public class JwtService {
     }
 
     // Validar token de sesión
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
-    }
+//    public boolean isTokenValid(String token, UserDetails userDetails) {
+//        final String username = extractUsername(token);
+//        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+//    }
 
     // Validar token de activación (usuario y código)
     public boolean isActivationTokenValid(String token, String code, String username) {

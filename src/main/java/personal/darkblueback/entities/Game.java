@@ -25,7 +25,11 @@ public class Game {
     private int stage; // para el modo campaña del juego
     private GamePhase phase = GamePhase.PLACEMENT;
     private String player1;   // nickname del jugador humano
+    private String avatarPlayer1;
     private String player2; // será en modo campaña el boos de la IA
+    private String avatarPlayer2; //el del boss en modo historia
+
+    private String me; // "player1" o "player2" para saber en online quien soy y que tablero es el mio
 
     private String turn; // "${nickname}" o "${boss}"
 

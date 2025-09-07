@@ -20,24 +20,33 @@ public class GameController {
 
     @GetMapping("/new")
     public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online) {
-        //TODO implementar ONLINE
+        System.out.println("nickname: " + nickname + " online: " + online);
+        GameDTO gameDTO = new GameDTO();
+        if (Boolean.FALSE.equals(online)) {
+        // ----------- MODO HISTORIA ---------
         // 1. Crear la partida en servicio
-        Game newGame = gameService.createNewGame(nickname);
+        Game newGame = gameService.createNewGame(nickname, false);
 
         // 2. Persistir en Mongo
         gameRepository.save(newGame);
         // 3. Mapear a DTO
-        GameDTO gameDTO = gameService.mapToDTO(newGame);
+        gameDTO = gameService.mapToDTO(newGame, nickname);
+
+        } else {
+            //TODO implementar ONLINE
+        }
         return ResponseEntity.ok(new IRestMessage(0, "Partida creada", gameDTO));
     }
+
     @PutMapping("/{gameId}/board")
     public ResponseEntity<IRestMessage> updateBoard(
             @PathVariable String gameId,
             @RequestBody BoardUpdateRequest request
     ) {
         Game updatedGame = gameService.updateBoard(gameId, request);
-        GameDTO gameDTO = gameService.mapToDTO(updatedGame);
+        GameDTO gameDTO = gameService.mapToDTO(updatedGame, request.getPlayer());
         return ResponseEntity.ok(new IRestMessage(0, "Partida actualizada", gameDTO));
     }
+
 
 }

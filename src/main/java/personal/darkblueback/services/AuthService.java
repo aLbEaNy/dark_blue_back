@@ -1,12 +1,6 @@
 package personal.darkblueback.services;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import personal.darkblueback.entities.Perfil;
 import personal.darkblueback.entities.Usuario;
@@ -18,15 +12,14 @@ import personal.darkblueback.model.RegisterRequest;
 import personal.darkblueback.repository.PerfilRepository;
 import personal.darkblueback.repository.UsuarioRepository;
 import personal.darkblueback.security.JwtService;
+import personal.darkblueback.utils.PasswordUtil;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UsuarioRepository usuarioRepository;
-    private final PasswordEncoder passwordEncoder;
     private final PerfilRepository perfilRepository;
     private final PerfilService perfilService;
 
@@ -34,14 +27,16 @@ public class AuthService {
     public String login (AuthRequest request) {
 
         try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-            );
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String token = jwtService.generateToken(userDetails);
+            Usuario user = usuarioRepository.findByUsername(request.getUsername()).orElseThrow(() -> new LoginException("* Usuario no registrado"));
+
+            if (!PasswordUtil.matches(request.getPassword(), user.getPassword())) {
+                throw new LoginException("* Usuario o password incorrectos ");
+            }
+
+            String token = jwtService.generateToken(user);
             System.out.println(token);
             return token;
-        } catch (AuthenticationException e) {
+        } catch (Exception e) {
             throw new LoginException("* Usuario o password incorrectos " +e.getMessage());
         }
     }
@@ -56,15 +51,13 @@ public class AuthService {
                 null,
                 request.getNickname(),
                 request.getUsername(),
-                passwordEncoder.encode(request.getPassword()),
-                "images/user.png",
-                "ROLE_USER",
+                PasswordUtil.hashPassword(request.getPassword()),
                 false
         );
         usuarioRepository.save(newUser);
         System.out.println("Añadido "+ newUser.getUsername() + " a la BD");
         //Crear perfil
-        Perfil perfil = perfilService.perfil(newUser);
+        Perfil perfil = perfilService.newPerfil(newUser, "images/avatar/default.png");
         perfilRepository.save(perfil);
         //token de activacion de cuenta
         return jwtService.generateActivationToken(request.getUsername());
