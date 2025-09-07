@@ -15,10 +15,17 @@ public class PerfilService {
 
     private final PerfilRepository perfilRepository;
 
-    public Perfil perfil (Usuario user){
+    public Perfil getPerfilByNickname (String nickname) {
+        return perfilRepository.findByNickname(nickname).orElse(null);
+    }
+    public Perfil getPerfilByUsername (String username) {
+        return perfilRepository.findByUsername(username).orElse(null);
+    }
+
+    public Perfil newPerfil (Usuario user, String avatar){
         Perfil perfil = perfilRepository.findByUsername(user.getUsername())
                 .orElse(
-                        new Perfil(null, user.getUsername(), user.getNickname(), user.getAvatar(),
+                        new Perfil(null, user.getUsername(), user.getNickname(), avatar,
                                 new Stats(
                                         new Date(),
                                         0,0,0,0,0
@@ -31,5 +38,11 @@ public class PerfilService {
 
     public void savePerfil (Perfil perfil) {
         perfilRepository.save(perfil);
+    }
+    public void changeAvatar (Usuario user, String avatar) {
+        Perfil perfil = perfilRepository.findByUsername(user.getUsername())
+                .orElse( newPerfil(user, avatar)); // Si no tuviera perfil por no haber sido verificada la cuenta
+        perfil.setAvatar(avatar);
+        this.savePerfil(perfil);
     }
 }

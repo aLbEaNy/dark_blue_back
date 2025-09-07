@@ -10,7 +10,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
@@ -21,13 +20,20 @@ import personal.darkblueback.exception.CustomException;
 import personal.darkblueback.model.*;
 import personal.darkblueback.security.JwtService;
 import personal.darkblueback.services.AuthService;
+import personal.darkblueback.services.AvatarService;
 import personal.darkblueback.services.GmailService;
 import personal.darkblueback.services.PerfilService;
+import personal.darkblueback.utils.PasswordUtil;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+@CrossOrigin(origins = "http://localhost:4200")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -36,8 +42,8 @@ public class AuthController {
     private final AuthService authService;
     private final JwtService jwtService;
     private final GmailService gmailService;
-    private final PasswordEncoder passwordEncoder;
     private final PerfilService perfilService;
+    private final AvatarService avatarService;
 
     @Value( "${google.CLIENT_ID}")
     private String CLIENT_ID;
@@ -86,10 +92,11 @@ public class AuthController {
 
         // Datos básicos del usuario
         String email = (String) payload.get("email");
-        String picture = (String) payload.get("picture");
+        String avatarUrlGoogle = (String) payload.get("picture");
+        String avatar = avatarService.saveAvatarFromUrl(avatarUrlGoogle, email);
         String name = (String) payload.get("name");
         System.out.println("email Google. ------------------> "+email);
-        System.out.println("picture Google. ------------------> "+picture);
+        System.out.println("picture Google. ------------------> "+avatarUrlGoogle);
         System.out.println("name Google. ------------------> "+name);
 
         // 3. ... JWT o guardar usuario en DB
@@ -99,36 +106,53 @@ public class AuthController {
                     null,
                     name.substring(0,7),
                     email,
-                    passwordEncoder.encode("Google1234!"),
-                    picture,
-                    "ROLE_USER",
+                    PasswordUtil.hashPassword("Google1234!"),
                     true
             );
             authService.saveUsuario(newUser);
             String token = jwtService.generateToken(newUser);
             System.out.println("----------- token ------------>  "+token);
-            Perfil perfil = perfilService.perfil(newUser);
-
+            Perfil perfil = perfilService.newPerfil(newUser, avatar);
 
             return ResponseEntity.ok(new IRestMessage(0,"envio token de sesion", new AuthResponse(token,perfil)));
-        }
+        } else {
+            //Actualizo el avatar de Google por si cambió
+            Usuario user = authService.getUsuarioByUsername(email);
+            user.setActivate(true);//por si acaso no lo hizo antes
+            String updatedAvatarUrlGoogle = avatarService.saveAvatarFromUrl(avatarUrlGoogle, email);
+            perfilService.changeAvatar(user, updatedAvatarUrlGoogle);
 
-        return ResponseEntity.ok(new IRestMessage(0,"envio token de sesion",
-                new AuthResponse(jwtService.generateToken(authService.getUsuarioByUsername(email)),
-                        perfilService.perfil(authService.getUsuarioByUsername(email)))));
+            Perfil _perfil = perfilService.getPerfilByUsername(user.getUsername());
+
+            authService.saveUsuario(user);
+            return ResponseEntity.ok(new IRestMessage(0,"envio token de sesion",
+                    new AuthResponse(jwtService.generateToken(user), _perfil)));
+        }
     }
+    @GetMapping("/avatar/{userId}")
+    public ResponseEntity<byte[]> getAvatar(@PathVariable String userId) throws IOException {
+        Path filePath = Paths.get("avatars", userId + ".png");
+        if (Files.exists(filePath)) {
+            byte[] imageBytes = Files.readAllBytes(filePath);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_PNG)
+                    .body(imageBytes);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
 
     @PostMapping("/login")
     public ResponseEntity<IRestMessage> login(@RequestBody @Valid AuthRequest request) {
         System.out.println("request login--------------------- " + request);
-        //TODO devolver datos de cliente y perfil
         String token = authService.login(request);
+        System.out.println("token login--------------------- " + token);
         Usuario user = authService.getUsuarioByUsername(request.getUsername());
-
+        Perfil perfil = perfilService.getPerfilByUsername(request.getUsername());
 
 
         return ResponseEntity.ok(new IRestMessage(
-                0, "envio token de sesion", new AuthResponse(token, perfilService.perfil(user))
+                0, "envio token de sesion", new AuthResponse(token, perfil)
         ));
     }
 

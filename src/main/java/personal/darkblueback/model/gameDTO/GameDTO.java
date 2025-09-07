@@ -17,7 +17,12 @@ public class GameDTO {
     private GamePhase phase;
 
     private String player1;
+    private String avatarPlayer1;
     private String player2;
+    private String avatarPlayer2;
+
+    private String me;
+
     private String turn;
 
     private Boolean isEnd;
