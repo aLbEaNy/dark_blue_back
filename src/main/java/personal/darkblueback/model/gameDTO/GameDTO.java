@@ -13,6 +13,7 @@ import personal.darkblueback.model.game.GamePhase;
 @NoArgsConstructor
 public class GameDTO {
     private String gameId;
+    private Boolean online;
     private int stage;
     private GamePhase phase;
 
@@ -20,8 +21,6 @@ public class GameDTO {
     private String avatarPlayer1;
     private String player2;
     private String avatarPlayer2;
-
-    private String me;
 
     private String turn;
 
