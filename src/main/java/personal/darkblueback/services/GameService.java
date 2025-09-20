@@ -1,6 +1,7 @@
 package personal.darkblueback.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import personal.darkblueback.entities.Game;
 import personal.darkblueback.entities.Perfil;
@@ -10,6 +11,7 @@ import personal.darkblueback.model.game.Boss;
 import personal.darkblueback.model.game.GamePhase;
 import personal.darkblueback.model.game.Submarine;
 import personal.darkblueback.model.gameDTO.GameDTO;
+import personal.darkblueback.model.gameDTO.GameMessage;
 import personal.darkblueback.repository.GameRepository;
 
 import java.util.*;
@@ -23,43 +25,60 @@ public class GameService {
     private static final char[] ROWS = "ABCDEFGHIJ".toCharArray();
     private final GameRepository gameRepository;
     private final PerfilService perfilService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public Game createNewGame(String nickname, Boolean online) {
-        Game game = new Game();
+
+    public Game createNewGame(String nickname, Boolean online, Game game) {
         Perfil perfil = perfilService.getPerfilByNickname(nickname);
-        // Estado inicial de la partida
-        game.setOnline(online);
-        game.setPhase(GamePhase.PLACEMENT);
-        game.setTurn(random.nextBoolean() ? "player1" : "player2");
-        game.setIsEnd(false);
-        // Crear tableros con submarinos aleatorios
-        game.setBoardPlayer1(generateBoard());
-        game.setBoardPlayer2(generateBoard());
+        if(!online){
+        //MODO HISTORIA
+            // Continua la partida
+            if (game.getId() != null) {
+                System.out.println("Continuando partida");
+                game.setWinner("player1");
+                int _stage = game.getStage();
+                game.setStage(_stage + 1);
+                System.out.println("-----------> GAME STAGE " + game.getStage());
+            } else {
+                System.out.println("Nueva partida");
+            //Nueva partida
+                gameRepository.deleteByPlayer1(nickname);// Borramos los games del user
+                game.setStage(1);
+                game.setOnline(online);
+                game.setPlayer1(nickname);
+                game.setAvatarPlayer1(perfil.getAvatar());
+            }
 
-        if (!online) {
-        //MODO CAMPAÑA O HISTORIA
-        gameRepository.deleteByPlayer1(nickname);// Borramos los games del user
-        game.setStage(1);
+            // Estado inicial de la partida
+            game.setPhase(GamePhase.PLACEMENT);
+            game.setTurn(random.nextBoolean() ? "player1" : "player2");
+            game.setIsEnd(false);
+            // Crear tableros con submarinos aleatorios
+            game.setBoardPlayer1(generateBoard());
+            game.setBoardPlayer2(generateBoard());
+            // Datos del boss
+            Boss boss = new Boss();
+            String nicknameBoss = boss.getNicknameList().get(game.getStage());
 
-        game.setPlayer1(nickname);
-        game.setAvatarPlayer1(perfil.getAvatar());
-        // Datos del boss
-        Boss boss = new Boss();
-        String nicknameBoss = boss.getNicknameList().get(game.getStage());
+            game.setReadyPlayer1(false);
+            game.setReadyPlayer2(true);
 
-        game.setReadyPlayer1(false);
-        game.setReadyPlayer2(true);
+            boss.setAvatarBoss("http://localhost:8080/media/images/avatar/boss"+game.getStage()+".png");
+                System.out.println(nicknameBoss);
+                System.out.println(boss.getAvatarBoss());
+            game.setPlayer2(nicknameBoss);
+            game.setAvatarPlayer2(boss.getAvatarBoss());
 
-        boss.setAvatarBoss("http://localhost:8080/media/images/avatar/boss"+game.getStage()+".png");
-            System.out.println(nicknameBoss);
-            System.out.println(boss.getAvatarBoss());
-        game.setPlayer2(nicknameBoss);
-        game.setAvatarPlayer2(boss.getAvatarBoss());
-
-        } else {
+        }else{
             //TODO MODO ONLINE
 
+
+            game.setTurn(random.nextBoolean() ? "player1" : "player2");
+
+
         }
+        //Persistir en Mongo
+        gameRepository.save(game);
         return game;
     }
 
@@ -81,9 +100,9 @@ public class GameService {
         submarines.add(generateSubmarine("s4","sub4", 4, occupied));
         submarines.add(generateSubmarine("s3","sub3a", 3, occupied));
         submarines.add(generateSubmarine("s3-2","sub3b", 3, occupied));
+        submarines.add(generateSubmarine("s3-3","sub3b", 3, occupied));
         submarines.add(generateSubmarine("s2","sub2", 2, occupied));
-        submarines.add(generateSubmarine("s2-2","sub2b", 2, occupied));
-        submarines.add(generateSubmarine("s1","sub1a", 1, occupied));
+        submarines.add(generateSubmarine("s2-2","sub2", 2, occupied));
         board.setSubmarines(submarines);
         board.setShots(new ArrayList<>());
 
@@ -189,4 +208,59 @@ public class GameService {
         return game;
     }
 
+    //ONLINE
+    public GameDTO joinOrCreateGame(String nickname) {
+        Optional<Game> optionalGame = gameRepository.findFirstByOnlineTrueAndPlayer1NotNullAndPlayer2IsNull();
+
+        Game game = new Game();
+        Perfil perfil = perfilService.getPerfilByNickname(nickname);
+
+        boolean isNew = false;
+
+        if (optionalGame.isPresent()) {
+            game = optionalGame.get();
+            if(game.getPlayer1().equals(nickname)) return mapToDTO(game);
+            // Asignar jugador al slot libre player2
+            game.setPlayer2(nickname);
+            game.setAvatarPlayer2(perfil.getAvatar());
+
+        } else {
+            // No hay juego disponible, crear uno nuevo
+
+            game.setOnline(true);
+            game.setPlayer1(nickname);
+            game.setAvatarPlayer1(perfil.getAvatar());
+
+            game.setTurn(random.nextBoolean() ? "player1" : "player2");
+            game.setReadyPlayer1(false);
+            game.setReadyPlayer2(false);
+
+            game.setBoardPlayer1(generateBoard());
+            game.setBoardPlayer2(generateBoard());
+            game.setIsEnd(false);
+
+            isNew = true;
+        }
+
+        // Notificar por WebSocket si la partida ya tiene ambos jugadores
+        if (!isNew && game.getPlayer2() !=null) {
+            game.setPhase(GamePhase.JOINED);
+            sendSocketMessage( game.getPhase(), mapToDTO(game));
+        }
+        // Guardar en Mongo
+        gameRepository.save(game);
+        GameDTO gameDTO = mapToDTO(game);
+
+        return gameDTO;
+    }
+
+    public void sendSocketMessage (GamePhase phase, GameDTO game) {
+        // Enviar a todos los clientes en el topic de ese gameId
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + game.getGameId(),
+                new GameMessage(phase, game)
+        );
+    }
 }
+
+

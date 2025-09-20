@@ -11,16 +11,16 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-        // Este broker enviará mensajes a los clientes
-        config.enableSimpleBroker("/topic");
-        // Prefijo para mensajes que envía el cliente al backend
-        config.setApplicationDestinationPrefixes("/app");
+    public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Este es tu endpoint STOMP para Angular
+        registry.addEndpoint("/ws-game")
+                .setAllowedOrigins("http://localhost:4200"); // permite Angular
     }
 
     @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Punto de conexión WebSocket
-        registry.addEndpoint("/ws-game").setAllowedOriginPatterns("*").withSockJS();
+    public void configureMessageBroker(MessageBrokerRegistry registry) {
+        // Configuración del broker de mensajes
+        registry.enableSimpleBroker("/topic");
+        registry.setApplicationDestinationPrefixes("/app");
     }
 }

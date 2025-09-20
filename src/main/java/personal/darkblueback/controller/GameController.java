@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import personal.darkblueback.entities.Game;
 import personal.darkblueback.model.IRestMessage;
 import personal.darkblueback.model.game.FireMessage;
@@ -25,23 +22,34 @@ public class GameController {
     private final GameRepository gameRepository;
 
     @GetMapping("/new")
-    public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online) {
-        System.out.println("nickname: " + nickname + " online: " + online);
-        GameDTO gameDTO = new GameDTO();
-        if (Boolean.FALSE.equals(online)) {
-        // ----------- MODO HISTORIA ---------
-        // 1. Crear la partida en servicio
-        Game newGame = gameService.createNewGame(nickname, false);
+    public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online, @RequestParam String gameId) {
+        System.out.println("nickname: " + nickname + " online: " + online + " gameContinue: " + gameId);
+        Game game = new Game();
+        GameDTO gameDTO;
+        //MODO HISTORIA
+        if (!online){
 
-        // 2. Persistir en Mongo
-        gameRepository.save(newGame);
-        // 3. Mapear a DTO
-        gameDTO = gameService.mapToDTO(newGame);
+            if (!gameId.isEmpty()) {
+                Game gameContinue = gameRepository.findById(gameId).orElse(null);
+                game = gameService.createNewGame(nickname, online, gameContinue);
+            } else{
+                // Crear la partida en servicio
+                game = gameService.createNewGame(nickname, online, game);
 
-        } else {
-            //TODO implementar ONLINE
+            }
+            // 2. Persistir en Mongo
+            gameRepository.save(game);
+            // 3. Mapear a DTO
+            gameDTO = gameService.mapToDTO(game);
+
+            return ResponseEntity.ok(new IRestMessage(0, "Partida creada", gameDTO));
+
+        //MODO ONLINE PvP
+        }else{
+            gameDTO = gameService.joinOrCreateGame(nickname);
+
+            return ResponseEntity.ok(new IRestMessage(0, "Partida online creada", gameDTO));
         }
-        return ResponseEntity.ok(new IRestMessage(0, "Partida creada", gameDTO));
     }
     // Cliente envía un disparo
     @MessageMapping("/fire")
@@ -51,5 +59,25 @@ public class GameController {
         // Envías el estado actualizado a todos los clientes del juego
         messagingTemplate.convertAndSend("/topic/game/" + message.getGameId(), updatedGame);
     }
+
+    @PostMapping("/update")
+    public ResponseEntity<IRestMessage> updateGame(@RequestBody GameDTO gameDTO) {
+        Game game = gameService.mapTOGame(gameDTO);
+        gameRepository.save(game);
+        return ResponseEntity.ok(new IRestMessage(0, "Partida actualizada", gameDTO));
+    }
+
+    @DeleteMapping("/{gameId}")
+    public ResponseEntity<IRestMessage> deleteGame(@PathVariable String gameId) {
+        if (!gameRepository.existsById(gameId)) {
+            return ResponseEntity
+                    .status(404)
+                    .body(new IRestMessage(1, "Partida no encontrada", null));
+        }
+
+        gameRepository.deleteById(gameId);
+        return ResponseEntity.ok(new IRestMessage(0, "Partida eliminada", null));
+    }
+
 
 }
