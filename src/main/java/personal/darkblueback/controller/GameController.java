@@ -2,13 +2,13 @@ package personal.darkblueback.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import personal.darkblueback.entities.Game;
 import personal.darkblueback.model.IRestMessage;
 import personal.darkblueback.model.game.FireMessage;
 import personal.darkblueback.model.gameDTO.GameDTO;
+import personal.darkblueback.model.gameDTO.GameMessage;
 import personal.darkblueback.repository.GameRepository;
 import personal.darkblueback.services.GameService;
 
@@ -52,17 +52,45 @@ public class GameController {
         }
     }
     // Cliente envía un disparo
-    @MessageMapping("/fire")
-    public void fire(FireMessage message) {
-        GameDTO updatedGame = gameService.processShot(message.getGameId(), message.getPlayer(), message.getCoord());
+    @PostMapping("/shoot")
+    public ResponseEntity<GameMessage> shoot(@RequestBody FireMessage fireMsg) {
 
-        // Envías el estado actualizado a todos los clientes del juego
-        messagingTemplate.convertAndSend("/topic/game/" + message.getGameId(), updatedGame);
+        GameMessage gameMsg = gameService.processFire(fireMsg);
+
+        // notificar a ambos jugadores
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + fireMsg.getGameId(),
+                gameMsg
+        );
+
+        return ResponseEntity.ok(gameMsg);
     }
 
     @PostMapping("/update")
     public ResponseEntity<IRestMessage> updateGame(@RequestBody GameDTO gameDTO) {
         Game game = gameService.mapTOGame(gameDTO);
+        //ONLINE
+        if(gameDTO.getOnline()){
+            switch (gameDTO.getPhase()){
+                case PLACEMENT -> {
+                    System.out.println("ENTRANDO EN UPDATE PHASE PLACEMENT");
+                    System.out.println("GAME READY " +gameDTO.getReadyPlayer1() + " " + gameDTO.getReadyPlayer2());
+                    if(gameDTO.getReadyPlayer1()){
+                        System.out.println("ENVIO SOCKET EN PHASE PLACEMENT READY player1");
+                    }
+                    if(gameDTO.getReadyPlayer2()){
+                        System.out.println("ENVIO SOCKET EN PHASE PLACEMENT READY player2");
+                    }
+                }
+                case BATTLE -> {
+                    System.out.println("ENTRANDO EN UPDATE PHASE BATTLE");
+                }
+
+            }
+            gameService.sendSocketMessage(gameDTO.getPhase(), gameDTO);
+
+        }
+
         gameRepository.save(game);
         return ResponseEntity.ok(new IRestMessage(0, "Partida actualizada", gameDTO));
     }
@@ -78,6 +106,11 @@ public class GameController {
         gameRepository.deleteById(gameId);
         return ResponseEntity.ok(new IRestMessage(0, "Partida eliminada", null));
     }
-
+    @GetMapping("/getGame/{gameId}")
+    public ResponseEntity<IRestMessage> getGame(@PathVariable String gameId) {
+        Game game = gameRepository.findById(gameId).orElseThrow(()->new RuntimeException("Game not found"));
+        GameDTO gameDTO = gameService.mapToDTO(game);
+        return ResponseEntity.ok(new IRestMessage(0, "Game con id " + gameId + " recuperado con éxito",gameDTO));
+    }
 
 }

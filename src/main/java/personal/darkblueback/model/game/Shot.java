@@ -12,8 +12,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class Shot {
 
-    private String coord;  // "A5"
-    private boolean hit;    // true si golpea un submarino
+    private String position;  // "A5"
+    private String result;    // si golpea HIT | MISS un submarino
 
 }
 
