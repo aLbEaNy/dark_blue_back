@@ -6,10 +6,7 @@ import org.springframework.stereotype.Service;
 import personal.darkblueback.entities.Game;
 import personal.darkblueback.entities.Perfil;
 import personal.darkblueback.exception.CustomException;
-import personal.darkblueback.model.game.Board;
-import personal.darkblueback.model.game.Boss;
-import personal.darkblueback.model.game.GamePhase;
-import personal.darkblueback.model.game.Submarine;
+import personal.darkblueback.model.game.*;
 import personal.darkblueback.model.gameDTO.GameDTO;
 import personal.darkblueback.model.gameDTO.GameMessage;
 import personal.darkblueback.repository.GameRepository;
@@ -252,6 +249,64 @@ public class GameService {
         GameDTO gameDTO = mapToDTO(game);
 
         return gameDTO;
+    }
+    public GameMessage processFire(FireMessage fireMsg) {
+        Game game = gameRepository.findById(fireMsg.getGameId()).orElseThrow(()->new CustomException("Game not found"));
+
+        // 1. Validar que es turno correcto
+        if (!game.getTurn().equals(fireMsg.getMe())) {
+            throw new IllegalStateException("Not your turn!");
+        }
+
+        // 2. Procesar disparo sobre tablero rival
+        Board boardRival = fireMsg.getMe().equals("player1")
+                ? game.getBoardPlayer2()
+                : game.getBoardPlayer1();
+
+        String pos = fireMsg.getPos();
+        boolean hit = false;
+
+        // 3. Buscar si acierta algún submarino
+        for (Submarine sub : boardRival.getSubmarines()) {
+            int idx = sub.getPositions().indexOf(pos);
+            if (idx != -1) {
+                hit = true;
+                sub.getIsTouched().set(idx, true);
+
+                // comprobar si ese submarino queda destruido
+                if (sub.getIsTouched().stream().allMatch(Boolean::booleanValue)) {
+                    sub.setIsDestroyed(true);
+                }
+                break;
+            }
+        }
+
+        // 4. Registrar disparo en el tablero rival
+        boardRival.getShots().add(new Shot(pos, hit ? "HIT" : "MISS"));
+
+        // 5. ¿Se acabó la partida?
+        boolean allDestroyed = boardRival.getSubmarines().stream()
+                .allMatch(Submarine::getIsDestroyed);
+
+        if (allDestroyed) {
+            game.setWinner(fireMsg.getMe());
+            game.setPhase(GamePhase.END);
+            game.setIsEnd(true);
+        } else {
+            // 6. Actualizar turno (solo si fallo)
+            if (!hit) {
+                game.setTurn(fireMsg.getMe().equals("player1") ? "player2" : "player1");
+            }
+        }
+        // 7. Persistir cambios
+        gameRepository.save(game);
+
+        // 8. Construir respuesta
+        GameMessage msg = new GameMessage();
+        msg.setPhase(game.getPhase());
+        msg.setGame(mapToDTO(game));
+
+        return msg;
     }
 
     public void sendSocketMessage (GamePhase phase, GameDTO game) {

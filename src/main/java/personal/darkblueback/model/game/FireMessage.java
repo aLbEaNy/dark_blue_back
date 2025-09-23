@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class FireMessage {
     private String gameId;
-    private String player;
-    private String coord;
+    private String me; //player1 or player2
+    private String pos;
 }

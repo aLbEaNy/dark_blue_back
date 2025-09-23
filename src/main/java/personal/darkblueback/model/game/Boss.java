@@ -14,7 +14,7 @@ public class Boss {
         nicknameList = new HashMap<>();
         nicknameList.put(1, "PMR-69");
         nicknameList.put(2, "ML0-LA");
-        nicknameList.put(3, "IA-BOSS3");
-        nicknameList.put(4, "IA-BOSS4");
+        nicknameList.put(3, "TRG-SA");
+        nicknameList.put(4, "SAN-T1");
     }
 }
