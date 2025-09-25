@@ -9,6 +9,7 @@ import personal.darkblueback.exception.CustomException;
 import personal.darkblueback.model.game.*;
 import personal.darkblueback.model.gameDTO.GameDTO;
 import personal.darkblueback.model.gameDTO.GameMessage;
+import personal.darkblueback.model.gameDTO.ShotResultDTO;
 import personal.darkblueback.repository.GameRepository;
 
 import java.util.*;
@@ -242,7 +243,7 @@ public class GameService {
         // Notificar por WebSocket si la partida ya tiene ambos jugadores
         if (!isNew && game.getPlayer2() !=null) {
             game.setPhase(GamePhase.JOINED);
-            sendSocketMessage( game.getPhase(), mapToDTO(game));
+            sendSocketMessage( game.getPhase(), mapToDTO(game), null);
         }
         // Guardar en Mongo
         gameRepository.save(game);
@@ -267,19 +268,24 @@ public class GameService {
         boolean hit = false;
 
         // 3. Buscar si acierta algún submarino
+        ShotResultDTO lastShot = new ShotResultDTO(false, false, false);
         for (Submarine sub : boardRival.getSubmarines()) {
             int idx = sub.getPositions().indexOf(pos);
             if (idx != -1) {
                 hit = true;
                 sub.getIsTouched().set(idx, true);
+                lastShot.setHit(true);
 
                 // comprobar si ese submarino queda destruido
                 if (sub.getIsTouched().stream().allMatch(Boolean::booleanValue)) {
                     sub.setIsDestroyed(true);
+                    lastShot.setDestroyed(true);
                 }
                 break;
             }
         }
+        if(!lastShot.isHit())
+            lastShot.setMiss(true);
 
         // 4. Registrar disparo en el tablero rival
         boardRival.getShots().add(new Shot(pos, hit ? "HIT" : "MISS"));
@@ -305,15 +311,16 @@ public class GameService {
         GameMessage msg = new GameMessage();
         msg.setPhase(game.getPhase());
         msg.setGame(mapToDTO(game));
+        msg.setLastShot(lastShot);
 
         return msg;
     }
 
-    public void sendSocketMessage (GamePhase phase, GameDTO game) {
+    public void sendSocketMessage (GamePhase phase, GameDTO game, ShotResultDTO lastShot) {
         // Enviar a todos los clientes en el topic de ese gameId
         messagingTemplate.convertAndSend(
                 "/topic/game/" + game.getGameId(),
-                new GameMessage(phase, game)
+                new GameMessage(phase, game, lastShot)
         );
     }
 }

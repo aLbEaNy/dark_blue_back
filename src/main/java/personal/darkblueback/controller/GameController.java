@@ -87,7 +87,7 @@ public class GameController {
                 }
 
             }
-            gameService.sendSocketMessage(gameDTO.getPhase(), gameDTO);
+            gameService.sendSocketMessage(gameDTO.getPhase(), gameDTO, null);
 
         }
 
