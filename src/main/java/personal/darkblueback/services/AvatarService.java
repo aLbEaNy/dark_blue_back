@@ -33,10 +33,10 @@ public class AvatarService {
             Path filePath = dir.resolve(userId + ".png");
             Files.write(filePath, imageBytes);
 
-            return "http://localhost:8080/media/images/avatar/" + userId + ".png"; // esta será la URL que devuelves al frontend
+            return "http://192.168.1.136:8080/media/images/avatar/" + userId + ".png"; // esta será la URL que devuelves al frontend
         } catch (Exception e) {
             e.printStackTrace();
-            return "http://localhost:8080/media/images/avatar/default.png";
+            return "http://192.168.1.136:8080/media/images/avatar/default.png";
         }
     }
 }

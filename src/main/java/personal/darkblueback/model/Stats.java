@@ -16,7 +16,6 @@ public class Stats {
     private Date fechaRegistro;
     private int stage = 0;
     private int coins = 0;
-    private int level = 0;
     private int wins = 0;
     private int losses = 0;
 

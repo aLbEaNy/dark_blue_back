@@ -61,7 +61,7 @@ public class GameService {
             game.setReadyPlayer1(false);
             game.setReadyPlayer2(true);
 
-            boss.setAvatarBoss("http://localhost:8080/media/images/avatar/boss"+game.getStage()+".png");
+            boss.setAvatarBoss("http://192.168.1.136:8080/media/images/avatar/boss"+game.getStage()+".png");
                 System.out.println(nicknameBoss);
                 System.out.println(boss.getAvatarBoss());
             game.setPlayer2(nicknameBoss);
@@ -244,6 +244,7 @@ public class GameService {
         if (!isNew && game.getPlayer2() !=null) {
             game.setPhase(GamePhase.JOINED);
             sendSocketMessage( game.getPhase(), mapToDTO(game), null);
+            System.out.println("Notificando jugadores conectados");
         }
         // Guardar en Mongo
         gameRepository.save(game);

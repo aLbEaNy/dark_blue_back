@@ -14,7 +14,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Este es tu endpoint STOMP para Angular
         registry.addEndpoint("/ws-game")
-                .setAllowedOrigins("http://localhost:4200"); // permite Angular
+                .setAllowedOrigins("http://localhost:4200","http://192.168.1.136:4200"); // permite Angular
     }
 
     @Override

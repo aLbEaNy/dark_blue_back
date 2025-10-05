@@ -22,21 +22,15 @@ public class GameController {
     private final GameRepository gameRepository;
 
     @GetMapping("/new")
-    public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online, @RequestParam String gameId) {
-        System.out.println("nickname: " + nickname + " online: " + online + " gameContinue: " + gameId);
+    public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online) {
+        System.out.println("nickname: " + nickname + " online: " + online);
         Game game = new Game();
         GameDTO gameDTO;
         //MODO HISTORIA
         if (!online){
+            // Crear la partida en servicio
+            game = gameService.createNewGame(nickname, online, game);
 
-            if (!gameId.isEmpty()) {
-                Game gameContinue = gameRepository.findById(gameId).orElse(null);
-                game = gameService.createNewGame(nickname, online, gameContinue);
-            } else{
-                // Crear la partida en servicio
-                game = gameService.createNewGame(nickname, online, game);
-
-            }
             // 2. Persistir en Mongo
             gameRepository.save(game);
             // 3. Mapear a DTO
@@ -51,6 +45,7 @@ public class GameController {
             return ResponseEntity.ok(new IRestMessage(0, "Partida online creada", gameDTO));
         }
     }
+
     // Cliente envía un disparo
     @PostMapping("/shoot")
     public ResponseEntity<GameMessage> shoot(@RequestBody FireMessage fireMsg) {
@@ -73,7 +68,7 @@ public class GameController {
         if(gameDTO.getOnline()){
             switch (gameDTO.getPhase()){
                 case PLACEMENT -> {
-                    System.out.println("ENTRANDO EN UPDATE PHASE PLACEMENT");
+                    System.out.println("(UPDATE) PHASE PLACEMENT ONLINE");
                     System.out.println("GAME READY " +gameDTO.getReadyPlayer1() + " " + gameDTO.getReadyPlayer2());
                     if(gameDTO.getReadyPlayer1()){
                         System.out.println("ENVIO SOCKET EN PHASE PLACEMENT READY player1");
@@ -83,7 +78,7 @@ public class GameController {
                     }
                 }
                 case BATTLE -> {
-                    System.out.println("ENTRANDO EN UPDATE PHASE BATTLE");
+                    System.out.println("UPDATE PHASE BATTLE");
                 }
 
             }
