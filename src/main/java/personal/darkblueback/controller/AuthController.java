@@ -33,7 +33,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-@CrossOrigin(origins = "http://localhost:4200")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor

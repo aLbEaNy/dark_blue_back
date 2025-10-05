@@ -28,7 +28,7 @@ public class PerfilService {
                         new Perfil(null, user.getUsername(), user.getNickname(), avatar,
                                 new Stats(
                                         new Date(),
-                                        0,0,0,0,0
+                                        0,0,0,0
 
                                 ), null)
                 );
