@@ -18,5 +18,7 @@ public class Stats {
     private int coins = 0;
     private int wins = 0;
     private int losses = 0;
-
+    private Long playTime = 0L; // total acumulado en milisegundos
+    private Long currentStartTime; // timestamp cuando comienza una sesión
+    private String rango = "Marinero";
 }

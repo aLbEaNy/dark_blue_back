@@ -103,5 +103,13 @@ public class AuthService {
     public void saveUsuario(Usuario usuario) {
         usuarioRepository.save(usuario);
     }
+    public boolean deleteAccount(String username) {
+        Perfil perfil = perfilRepository.findByUsername(username).orElseThrow(() -> new CustomException("No existe el perfil del username: " + username));;
+        Usuario user = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException("No existe usuario con username: " + username));
+        perfilRepository.delete(perfil);
+        usuarioRepository.delete(user);
+        return true;
+    }
 }
 

@@ -22,14 +22,13 @@ public class GameController {
     private final GameRepository gameRepository;
 
     @GetMapping("/new")
-    public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online) {
-        System.out.println("nickname: " + nickname + " online: " + online);
-        Game game = new Game();
+    public ResponseEntity<IRestMessage> newGame(@RequestParam String nickname, @RequestParam Boolean online, @RequestParam String gameId) {
+        System.out.println("nickname: " + nickname + " online: " + online + " gameId: " + gameId);
         GameDTO gameDTO;
         //MODO HISTORIA
         if (!online){
             // Crear la partida en servicio
-            game = gameService.createNewGame(nickname, online, game);
+            Game game = gameService.createNewGame(nickname, gameId);
 
             // 2. Persistir en Mongo
             gameRepository.save(game);

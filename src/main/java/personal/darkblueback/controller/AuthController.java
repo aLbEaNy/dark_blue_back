@@ -101,11 +101,15 @@ public class AuthController {
         // 3. ... JWT o guardar usuario en DB
         if (!authService.emailExist(email)){
             // Se registra por primera vez y se hace login
+            name = name.replace(" ", "_");
+            while (authService.nicknameExist(name.substring(0,9))){
+                name = name.substring(0,6) + (int)(Math.random()*1000);
+            }
             Usuario newUser = new Usuario(
                     null,
-                    name.substring(0,7),
+                    name.substring(0,9),
                     email,
-                    PasswordUtil.hashPassword("Google1234!"),
+                    PasswordUtil.hashPassword(" "),
                     true
             );
             authService.saveUsuario(newUser);
@@ -115,12 +119,8 @@ public class AuthController {
 
             return ResponseEntity.ok(new IRestMessage(0,"envio token de sesion", new AuthResponse(token,perfil)));
         } else {
-            //Actualizo el avatar de Google por si cambió
             Usuario user = authService.getUsuarioByUsername(email);
             user.setActivate(true);//por si acaso no lo hizo antes
-            String updatedAvatarUrlGoogle = avatarService.saveAvatarFromUrl(avatarUrlGoogle, email);
-            perfilService.changeAvatar(user, updatedAvatarUrlGoogle);
-
             Perfil _perfil = perfilService.getPerfilByUsername(user.getUsername());
 
             authService.saveUsuario(user);
@@ -221,5 +221,9 @@ public class AuthController {
         } else {
             return ResponseEntity.ok(new IRestMessage(1, "* El email está disponible.", null));
         }
+    }
+    @DeleteMapping()
+    public boolean deleteAccount(@RequestParam String username){
+        return authService.deleteAccount(username);
     }
 }
