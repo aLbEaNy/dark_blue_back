@@ -26,12 +26,12 @@ public class GameService {
     private final SimpMessagingTemplate messagingTemplate;
 
 
-    public Game createNewGame(String nickname, Boolean online, Game game) {
+    public Game createNewGame(String nickname, String gameId) {
         Perfil perfil = perfilService.getPerfilByNickname(nickname);
-        if(!online){
         //MODO HISTORIA
+        Game game = gameRepository.findById(gameId).orElse(new Game());
             // Continua la partida
-            if (game.getId() != null) {
+            if (!gameId.isEmpty()) {
                 System.out.println("Continuando partida");
                 game.setWinner("player1");
                 int _stage = game.getStage();
@@ -42,7 +42,7 @@ public class GameService {
             //Nueva partida
                 gameRepository.deleteByPlayer1(nickname);// Borramos los games del user
                 game.setStage(1);
-                game.setOnline(online);
+                game.setOnline(false);
                 game.setPlayer1(nickname);
                 game.setAvatarPlayer1(perfil.getAvatar());
             }
@@ -61,20 +61,12 @@ public class GameService {
             game.setReadyPlayer1(false);
             game.setReadyPlayer2(true);
 
-            boss.setAvatarBoss("http://192.168.1.136:8080/media/images/avatar/boss"+game.getStage()+".png");
+            boss.setAvatarBoss("http://localhost:8080/media/images/avatar/boss"+game.getStage()+".png");
                 System.out.println(nicknameBoss);
                 System.out.println(boss.getAvatarBoss());
             game.setPlayer2(nicknameBoss);
             game.setAvatarPlayer2(boss.getAvatarBoss());
 
-        }else{
-            //TODO MODO ONLINE
-
-
-            game.setTurn(random.nextBoolean() ? "player1" : "player2");
-
-
-        }
         //Persistir en Mongo
         gameRepository.save(game);
         return game;

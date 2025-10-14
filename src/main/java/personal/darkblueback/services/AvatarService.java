@@ -1,5 +1,6 @@
 package personal.darkblueback.services;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -11,6 +12,12 @@ import java.nio.file.Paths;
 public class AvatarService {
 
     private final WebClient webClient;
+
+    @Value("${storage.media.avatar-dir}")
+    private String avatarDir;
+
+    @Value( "${storage.media.url}")
+    private String storageMediaUrl;
 
     public AvatarService(WebClient.Builder builder) {
         this.webClient = builder.build();
@@ -25,18 +32,18 @@ public class AvatarService {
                     .block();
 
             // carpeta local para guardar
-            Path dir = Paths.get("src/main/resources/static/media/images/avatar/");
+            Path dir = Paths.get(avatarDir);
             if (!Files.exists(dir)) {
                 Files.createDirectories(dir);
             }
 
-            Path filePath = dir.resolve(userId + ".png");
+            Path filePath = dir.resolve(userId.split("@")[0] + ".png");
             Files.write(filePath, imageBytes);
 
-            return "http://192.168.1.136:8080/media/images/avatar/" + userId + ".png"; // esta será la URL que devuelves al frontend
+            return storageMediaUrl + "/images/avatar/" + userId.split("@")[0] + ".png"; // esta será la URL que devuelves al frontend
         } catch (Exception e) {
             e.printStackTrace();
-            return "http://192.168.1.136:8080/media/images/avatar/default.png";
+            return storageMediaUrl + "/images/avatar/default.png";
         }
     }
 }
