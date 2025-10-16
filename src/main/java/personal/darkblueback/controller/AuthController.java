@@ -226,4 +226,24 @@ public class AuthController {
     public boolean deleteAccount(@RequestParam String username){
         return authService.deleteAccount(username);
     }
+
+    @GetMapping("/forgotPassword")
+    public ResponseEntity<IRestMessage> forgotPassword(@RequestParam String email) {
+        try {
+            if(!authService.emailExist(email))
+                return ResponseEntity.ok(new IRestMessage(1, "El correo" +email+ "no está registrado en Dark Blue.", null));
+            else {
+                Usuario user = authService.getUsuarioByUsername(email);
+                String pass = "dB@1miss"+(int)(Math.random()*1000);
+                user.setPassword(PasswordUtil.hashPassword(pass));
+                authService.saveUsuario(user);
+                gmailService.sendResetPassword(user.getUsername(), pass);
+                return ResponseEntity.ok(new IRestMessage(0, "ok", null));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.ok(new IRestMessage(2, " Ha ocurrido un error al resetar la contraseña... Inténtalo de nuevo más tarde", null));
+        }
+
+
+    }
 }
