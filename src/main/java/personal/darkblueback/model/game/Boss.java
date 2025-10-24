@@ -13,8 +13,8 @@ public class Boss {
     public Boss() {
         nicknameList = new HashMap<>();
         nicknameList.put(1, "PMR-69");
-        nicknameList.put(2, "ML0-LA");
-        nicknameList.put(3, "TRG-SA");
-        nicknameList.put(4, "SAN-T1");
+        nicknameList.put(2, "ML0-L4");
+        nicknameList.put(3, "TR6-S4");
+        nicknameList.put(4, "S4N-T1");
     }
 }
