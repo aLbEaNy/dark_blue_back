@@ -313,7 +313,7 @@ public class GameService {
         // Enviar a todos los clientes en el topic de ese gameId
         messagingTemplate.convertAndSend(
                 "/topic/game/" + game.getGameId(),
-                new GameMessage(phase, game, lastShot)
+                new GameMessage(phase, game, lastShot, null, null, null, null)
         );
     }
 }

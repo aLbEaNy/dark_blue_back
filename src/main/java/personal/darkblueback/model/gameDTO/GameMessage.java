@@ -15,6 +15,11 @@ public class GameMessage {
     private GameDTO game;  // partida completa
     private ShotResultDTO lastShot; // null sino hay disparo
 
+    private String type;
+    private String sender;
+    private String content;
+    private String timestamp;
+
 
 
 
