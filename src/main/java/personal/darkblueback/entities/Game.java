@@ -36,6 +36,12 @@ public class Game {
     private boolean readyPlayer1;
     private boolean readyPlayer2;
 
+    private String special1Player1;
+    private String special2Player1;
+    private String special1Player2;
+    private String special2Player2;
+
+
     private String winner; // player1 o player2
 }
 

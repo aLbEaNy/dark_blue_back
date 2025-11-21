@@ -8,7 +8,6 @@ import personal.darkblueback.entities.Perfil;
 import personal.darkblueback.entities.Usuario;
 import personal.darkblueback.exception.CustomException;
 import personal.darkblueback.model.Stats;
-import personal.darkblueback.model.game.Special;
 import personal.darkblueback.repository.PerfilRepository;
 import personal.darkblueback.repository.UsuarioRepository;
 import personal.darkblueback.utils.PasswordUtil;
@@ -17,8 +16,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +44,7 @@ public class PerfilService {
                         new Perfil(null, user.getUsername(), user.getNickname(), avatar+"?t="+System.currentTimeMillis(),
                                 new Stats(
                                         new Date(),
-                                        0,0,0,0,0L,0L,"Marinero", List.of(),new Special(),new Special()
+                                        0,0,0,0,0L,0L,"Marinero", new ArrayList<String>(),"",""
 
                                 ), null)
                 );

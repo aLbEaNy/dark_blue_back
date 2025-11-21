@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import personal.darkblueback.model.game.Special;
 
 import java.util.Date;
 import java.util.List;
@@ -24,6 +23,6 @@ public class Stats {
     private Long currentStartTime; // timestamp cuando comienza una sesión
     private String rango = "Marinero";
     private List<String> specials;
-    private Special specialSlot1;
-    private Special specialSlot2;
+    private String specialSlot1;
+    private String specialSlot2;
 }
