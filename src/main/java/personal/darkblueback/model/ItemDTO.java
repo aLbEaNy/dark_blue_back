@@ -1,4 +1,4 @@
-package personal.darkblueback.model.game;
+package personal.darkblueback.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,12 +7,12 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-public class Special {
+@AllArgsConstructor
+public class ItemDTO {
     private String name;
     private String description;
     private String image;
-    private Boolean active;
-    private String owner;
+    private int price;
+    private String typeCoin;
 }
