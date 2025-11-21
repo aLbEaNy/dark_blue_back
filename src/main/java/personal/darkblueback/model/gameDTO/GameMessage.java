@@ -13,7 +13,7 @@ import personal.darkblueback.model.game.GamePhase;
 public class GameMessage {
     private GamePhase phase;   // "JOINED", "READY", "BATTLE", "END"
     private GameDTO game;  // partida completa
-    private ShotResultDTO lastShot; // null sino hay disparo
+    private ShotResultDTO lastShot; // null si no hay disparo
 
     private String type;
     private String sender;
