@@ -8,11 +8,11 @@ import personal.darkblueback.model.gameDTO.GameMessage;
 import java.time.LocalDateTime;
 
 @Controller
-public class ChatController {
+public class SocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
 
-    public ChatController(SimpMessagingTemplate messagingTemplate) {
+    public SocketController(SimpMessagingTemplate messagingTemplate) {
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -27,4 +27,16 @@ public class ChatController {
                 msg
         );
     }
+    @MessageMapping("/game/{gameId}")
+    public void handleGame(@DestinationVariable String gameId, GameMessage msg) {
+        msg.setType("GAME");
+        msg.setTimestamp(LocalDateTime.now().toString());
+
+        // Reenvío a todos los suscriptores
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + gameId,
+                msg
+        );
+    }
+
 }

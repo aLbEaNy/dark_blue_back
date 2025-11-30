@@ -1,9 +1,11 @@
 package personal.darkblueback.model.game;
 
 public enum GamePhase {
+    EXIT,
     JOINED,
-    PLACEMENT,   // ambos jugadores colocando submarinos
     WAITING,
+    PLACEMENT,   // ambos jugadores colocando submarinos
     BATTLE, // turno de disparos
-    END     // partida terminada
+    END,    // partida terminada
+    SPECIAL
 }
