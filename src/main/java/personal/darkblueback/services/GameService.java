@@ -10,6 +10,7 @@ import personal.darkblueback.model.game.*;
 import personal.darkblueback.model.gameDTO.GameDTO;
 import personal.darkblueback.model.gameDTO.GameMessage;
 import personal.darkblueback.model.gameDTO.ShotResultDTO;
+import personal.darkblueback.model.gameDTO.Special;
 import personal.darkblueback.repository.GameRepository;
 
 import java.util.*;
@@ -70,13 +71,6 @@ public class GameService {
         //Persistir en Mongo
         gameRepository.save(game);
         return game;
-    }
-
-    public GameDTO processShot(String gameId, String player, String coord) {
-        Game game = gameRepository.findById(gameId).orElseThrow(()->new CustomException("Game not found"));
-
-        GameDTO gameDTO = mapToDTO(game);
-        return  gameDTO;
     }
 
     private Board generateBoard() {
@@ -175,6 +169,8 @@ public class GameService {
         dto.setBoardPlayer2(game.getBoardPlayer2());
         dto.setReadyPlayer1(game.isReadyPlayer1());
         dto.setReadyPlayer2(game.isReadyPlayer2());
+        dto.setSpecialPlayer1(game.getSpecialPlayer1());
+        dto.setSpecialPlayer2(game.getSpecialPlayer2());
         return dto;
     }
 
@@ -195,6 +191,8 @@ public class GameService {
         game.setReadyPlayer1(dto.getReadyPlayer1());
         game.setReadyPlayer2(dto.getReadyPlayer2());
         game.setWinner(dto.getWinner());
+        game.setSpecialPlayer1(dto.getSpecialPlayer1());
+        game.setSpecialPlayer2(dto.getSpecialPlayer2());
         return game;
     }
 
@@ -213,22 +211,33 @@ public class GameService {
             // Asignar jugador al slot libre player2
             game.setPlayer2(nickname);
             game.setAvatarPlayer2(perfil.getAvatar());
+            Special special2 = new Special(
+                    perfil.getStats().getSpecialSlot1(),
+                    perfil.getStats().getSpecialSlot2(),
+                    false,
+                    false
+            );
+            game.setSpecialPlayer2(special2);
 
         } else {
             // No hay juego disponible, crear uno nuevo
-
             game.setOnline(true);
             game.setPlayer1(nickname);
             game.setAvatarPlayer1(perfil.getAvatar());
-
             game.setTurn(random.nextBoolean() ? "player1" : "player2");
             game.setReadyPlayer1(false);
             game.setReadyPlayer2(false);
-
             game.setBoardPlayer1(generateBoard());
             game.setBoardPlayer2(generateBoard());
             game.setIsEnd(false);
-
+            Special special1  = new Special(
+                    perfil.getStats().getSpecialSlot1(),
+                    perfil.getStats().getSpecialSlot2(),
+                    false,
+                    false);
+            Special special2  = new Special();
+            game.setSpecialPlayer1(special1);
+            game.setSpecialPlayer2(special2);
             isNew = true;
         }
 
@@ -240,13 +249,12 @@ public class GameService {
         }
         // Guardar en Mongo
         gameRepository.save(game);
-        GameDTO gameDTO = mapToDTO(game);
-
-        return gameDTO;
+        return mapToDTO(game);
     }
+
     public GameMessage processFire(FireMessage fireMsg) {
         Game game = gameRepository.findById(fireMsg.getGameId()).orElseThrow(()->new CustomException("Game not found"));
-
+        boolean noSpecial = true;
         // 1. Validar que es turno correcto
         if (!game.getTurn().equals(fireMsg.getMe())) {
             throw new IllegalStateException("Not your turn!");
@@ -289,19 +297,30 @@ public class GameService {
 
         if (allDestroyed) {
             game.setWinner(fireMsg.getMe());
-            game.setPhase(GamePhase.END);
-            game.setIsEnd(true);
         } else {
             // 6. Actualizar turno (solo si fallo)
             if (!hit) {
-                game.setTurn(fireMsg.getMe().equals("player1") ? "player2" : "player1");
+                noSpecial = fireMsg.getMe().equals("player1")
+                        ? !game.getSpecialPlayer1().isActiveSpecial1()
+                        && !game.getSpecialPlayer1().isActiveSpecial2()
+                        : !game.getSpecialPlayer2().isActiveSpecial1()
+                        && !game.getSpecialPlayer2().isActiveSpecial2();
+
+                if (noSpecial) {
+                    game.setTurn(fireMsg.getMe().equals("player1") ? "player2" : "player1");
+                }
             }
+
         }
         // 7. Persistir cambios
         gameRepository.save(game);
 
         // 8. Construir respuesta
         GameMessage msg = new GameMessage();
+        if (!noSpecial) {
+            msg.setType("SPECIAL");
+        } else
+            msg.setType("GAME");
         msg.setPhase(game.getPhase());
         msg.setGame(mapToDTO(game));
         msg.setLastShot(lastShot);
@@ -314,6 +333,14 @@ public class GameService {
         messagingTemplate.convertAndSend(
                 "/topic/game/" + game.getGameId(),
                 new GameMessage(phase, game, lastShot, null, null, null, null)
+        );
+    }
+
+    public void sendSocketExit (String gameId) {
+                GameMessage msg = new GameMessage();
+                msg.setType("EXIT");
+        messagingTemplate.convertAndSend(
+                "/topic/game/" + gameId, msg
         );
     }
 }

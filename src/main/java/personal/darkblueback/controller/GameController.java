@@ -82,7 +82,6 @@ public class GameController {
 
             }
             gameService.sendSocketMessage(gameDTO.getPhase(), gameDTO, null);
-
         }
 
         gameRepository.save(game);
@@ -106,5 +105,9 @@ public class GameController {
         GameDTO gameDTO = gameService.mapToDTO(game);
         return ResponseEntity.ok(new IRestMessage(0, "Game con id " + gameId + " recuperado con éxito",gameDTO));
     }
-
+    @GetMapping("/exit/{gameId}")
+    public boolean exitGame(@PathVariable String gameId) {
+        gameService.sendSocketExit(gameId);
+        return true;
+    }
 }

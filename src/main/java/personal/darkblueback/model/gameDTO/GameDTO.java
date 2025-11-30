@@ -32,4 +32,7 @@ public class GameDTO {
 
     private Boolean readyPlayer1;
     private Boolean readyPlayer2;
+
+    private Special specialPlayer1;
+    private Special specialPlayer2;
 }

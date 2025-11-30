@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import personal.darkblueback.model.game.Board;
 import personal.darkblueback.model.game.GamePhase;
+import personal.darkblueback.model.gameDTO.Special;
 
 @Document(collection = "games")
 @Getter
@@ -36,10 +37,8 @@ public class Game {
     private boolean readyPlayer1;
     private boolean readyPlayer2;
 
-    private String special1Player1;
-    private String special2Player1;
-    private String special1Player2;
-    private String special2Player2;
+    private Special specialPlayer1;
+    private Special specialPlayer2;
 
 
     private String winner; // player1 o player2
