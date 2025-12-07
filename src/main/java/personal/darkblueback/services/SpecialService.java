@@ -44,15 +44,4 @@ public class SpecialService {
             default -> false;
         };
     }
-
-//    public void activateSpecial(Game game, String nickName, int slot) {
-//        Special special = nickName.equals(game.getPlayer1()) ? game.getSpecialPlayer1() : game.getSpecialPlayer2();
-//        if (slot == 1 && special.isActiveSpecial1()) {
-//            // Lógica de especial1
-//            special.setActiveSpecial1(false);
-//        } else if (slot == 2 && special.isActiveSpecial2()) {
-//            // Lógica de especial2
-//            special.setActiveSpecial2(false);
-//        }
-//    }
 }

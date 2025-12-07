@@ -358,7 +358,6 @@ public class GameService {
         Special special = me.equals("player1") ? game.getSpecialPlayer1() : game.getSpecialPlayer2();
 
         List<ShotResultDTO> shotsResults = new ArrayList<>();
-        boolean anyHit = false;
 
         for (String pos : positions) {
             boolean hit = false;
@@ -368,7 +367,6 @@ public class GameService {
                 int idx = sub.getPositions().indexOf(pos);
                 if (idx != -1) {
                     hit = true;
-                    anyHit = true;
                     sub.getIsTouched().set(idx, true);
                     resultDTO.setHit(true);
 
