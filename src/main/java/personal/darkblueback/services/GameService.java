@@ -25,6 +25,7 @@ public class GameService {
     private final GameRepository gameRepository;
     private final PerfilService perfilService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SpecialService specialService;
 
 
     public Game createNewGame(String nickname, String gameId) {
@@ -47,7 +48,6 @@ public class GameService {
                 game.setPlayer1(nickname);
                 game.setAvatarPlayer1(perfil.getAvatar());
             }
-
             // Estado inicial de la partida
             game.setPhase(GamePhase.PLACEMENT);
             game.setTurn(random.nextBoolean() ? "player1" : "player2");
@@ -58,10 +58,8 @@ public class GameService {
             // Datos del boss
             Boss boss = new Boss();
             String nicknameBoss = boss.getNicknameList().get(game.getStage());
-
             game.setReadyPlayer1(false);
             game.setReadyPlayer2(true);
-
             boss.setAvatarBoss("http://localhost:8080/media/images/avatar/boss"+game.getStage()+".png");
                 System.out.println(nicknameBoss);
                 System.out.println(boss.getAvatarBoss());
@@ -214,6 +212,8 @@ public class GameService {
             Special special2 = new Special(
                     perfil.getStats().getSpecialSlot1(),
                     perfil.getStats().getSpecialSlot2(),
+                    0,
+                    0,
                     false,
                     false
             );
@@ -233,6 +233,8 @@ public class GameService {
             Special special1  = new Special(
                     perfil.getStats().getSpecialSlot1(),
                     perfil.getStats().getSpecialSlot2(),
+                    0,
+                    0,
                     false,
                     false);
             Special special2  = new Special();
@@ -244,7 +246,7 @@ public class GameService {
         // Notificar por WebSocket si la partida ya tiene ambos jugadores
         if (!isNew && game.getPlayer2() !=null) {
             game.setPhase(GamePhase.JOINED);
-            sendSocketMessage( game.getPhase(), mapToDTO(game), null);
+            sendSocketMessage( game.getPhase(), mapToDTO(game), null, null);
             System.out.println("Notificando jugadores conectados");
         }
         // Guardar en Mongo
@@ -254,12 +256,11 @@ public class GameService {
 
     public GameMessage processFire(FireMessage fireMsg) {
         Game game = gameRepository.findById(fireMsg.getGameId()).orElseThrow(()->new CustomException("Game not found"));
-        boolean noSpecial = true;
+        boolean specialActive = false;
         // 1. Validar que es turno correcto
         if (!game.getTurn().equals(fireMsg.getMe())) {
             throw new IllegalStateException("Not your turn!");
         }
-
         // 2. Procesar disparo sobre tablero rival
         Board boardRival = fireMsg.getMe().equals("player1")
                 ? game.getBoardPlayer2()
@@ -297,16 +298,20 @@ public class GameService {
 
         if (allDestroyed) {
             game.setWinner(fireMsg.getMe());
+            game.setPhase(GamePhase.END);
         } else {
             // 6. Actualizar turno (solo si fallo)
             if (!hit) {
-                noSpecial = fireMsg.getMe().equals("player1")
-                        ? !game.getSpecialPlayer1().isActiveSpecial1()
-                        && !game.getSpecialPlayer1().isActiveSpecial2()
-                        : !game.getSpecialPlayer2().isActiveSpecial1()
-                        && !game.getSpecialPlayer2().isActiveSpecial2();
 
-                if (noSpecial) {
+
+                game = specialService.incrementSpecialCounter(game, fireMsg.getMe());
+                specialActive = fireMsg.getMe().equals("player1")
+                        ? game.getSpecialPlayer1().isActiveSpecial1()
+                        || game.getSpecialPlayer1().isActiveSpecial2()
+                        : game.getSpecialPlayer2().isActiveSpecial1()
+                        || game.getSpecialPlayer2().isActiveSpecial2();
+
+                if (!specialActive) {
                     game.setTurn(fireMsg.getMe().equals("player1") ? "player2" : "player1");
                 }
             }
@@ -317,10 +322,27 @@ public class GameService {
 
         // 8. Construir respuesta
         GameMessage msg = new GameMessage();
-        if (!noSpecial) {
+        if (specialActive) {
             msg.setType("SPECIAL");
+            Special spec = fireMsg.getMe().equals("player1")
+                    ? game.getSpecialPlayer1()
+                    : game.getSpecialPlayer2();
+            String activatedSpecial = null;
+            Integer slot = null;
+            if (spec.isActiveSpecial1()) {
+                activatedSpecial = spec.getSpecial1();
+                slot = 1;
+            }
+            if (spec.isActiveSpecial2()) {
+                activatedSpecial = spec.getSpecial2();
+                slot = 2;
+            }
+            msg.setSpecial(activatedSpecial);
+            msg.setSlot(slot);
+            msg.setPlayer(fireMsg.getMe());
         } else
             msg.setType("GAME");
+
         msg.setPhase(game.getPhase());
         msg.setGame(mapToDTO(game));
         msg.setLastShot(lastShot);
@@ -328,12 +350,74 @@ public class GameService {
         return msg;
     }
 
-    public void sendSocketMessage (GamePhase phase, GameDTO game, ShotResultDTO lastShot) {
+    public GameMessage processSpecialFire(String gameId, String me, List<String> positions) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new CustomException("Game not found"));
+
+        Board boardRival = me.equals("player1") ? game.getBoardPlayer2() : game.getBoardPlayer1();
+        Special special = me.equals("player1") ? game.getSpecialPlayer1() : game.getSpecialPlayer2();
+
+        List<ShotResultDTO> shotsResults = new ArrayList<>();
+
+        for (String pos : positions) {
+            boolean hit = false;
+            ShotResultDTO resultDTO = new ShotResultDTO(false, false, false);
+
+            for (Submarine sub : boardRival.getSubmarines()) {
+                int idx = sub.getPositions().indexOf(pos);
+                if (idx != -1) {
+                    hit = true;
+                    sub.getIsTouched().set(idx, true);
+                    resultDTO.setHit(true);
+
+                    if (sub.getIsTouched().stream().allMatch(Boolean::booleanValue)) {
+                        sub.setIsDestroyed(true);
+                        resultDTO.setDestroyed(true);
+                    }
+                    break;
+                }
+            }
+
+            if (!hit) resultDTO.setMiss(true);
+
+            boardRival.getShots().add(new Shot(pos, hit ? "HIT" : "MISS"));
+            shotsResults.add(resultDTO);
+        }
+
+        // Comprobar si termina la partida
+        boolean allDestroyed = boardRival.getSubmarines().stream()
+                .allMatch(Submarine::getIsDestroyed);
+        if (allDestroyed) {
+            game.setWinner(me);
+        }
+
+        // Cambiar turno si no hay otro especial activo
+        if (special != null && !special.isActiveSpecial1() && !special.isActiveSpecial2()) {
+            game.setTurn(me.equals("player1") ? "player2" : "player1");
+        }
+
+        // Persistir cambios
+        gameRepository.save(game);
+
+        // Construir respuesta
+        GameMessage msg = new GameMessage();
+        msg.setType("SPECIAL");
+        msg.setPhase(game.getPhase());
+        msg.setGame(mapToDTO(game));
+        msg.setMultiShotResults(shotsResults); // lista de resultados de cada disparo
+
+        return msg;
+    }
+
+
+    public void sendSocketMessage (GamePhase phase, GameDTO game, ShotResultDTO lastShot, List<ShotResultDTO> shotResultDTOList) {
         // Enviar a todos los clientes en el topic de ese gameId
-        messagingTemplate.convertAndSend(
-                "/topic/game/" + game.getGameId(),
-                new GameMessage(phase, game, lastShot, null, null, null, null)
-        );
+        GameMessage msg = new GameMessage();
+        msg.setPhase(phase);
+        msg.setGame(game);
+        msg.setMultiShotResults(shotResultDTOList);
+        msg.setLastShot(lastShot);
+        messagingTemplate.convertAndSend("/topic/game/" + game.getGameId(), msg );
     }
 
     public void sendSocketExit (String gameId) {

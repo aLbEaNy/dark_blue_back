@@ -38,5 +38,4 @@ public class SocketController {
                 msg
         );
     }
-
 }
