@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import personal.darkblueback.entities.Game;
 import personal.darkblueback.model.IRestMessage;
 import personal.darkblueback.model.game.FireMessage;
+import personal.darkblueback.model.game.GamePhase;
 import personal.darkblueback.model.gameDTO.GameDTO;
 import personal.darkblueback.model.gameDTO.GameMessage;
 import personal.darkblueback.repository.GameRepository;
@@ -48,8 +49,12 @@ public class GameController {
     // Cliente envía un disparo
     @PostMapping("/shoot")
     public ResponseEntity<GameMessage> shoot(@RequestBody FireMessage fireMsg) {
-
-        GameMessage gameMsg = gameService.processFire(fireMsg);
+        GameMessage gameMsg;
+        if(fireMsg.getPositions() == null) {
+            gameMsg = gameService.processFire(fireMsg);
+        } else {
+            gameMsg = gameService.processSpecialFire(fireMsg.getGameId(), fireMsg.getMe(), fireMsg.getPositions());
+        }
 
         // notificar a ambos jugadores
         messagingTemplate.convertAndSend(
@@ -64,26 +69,8 @@ public class GameController {
     public ResponseEntity<IRestMessage> updateGame(@RequestBody GameDTO gameDTO) {
         Game game = gameService.mapTOGame(gameDTO);
         //ONLINE
-        if(gameDTO.getOnline()){
-            switch (gameDTO.getPhase()){
-                case PLACEMENT -> {
-                    System.out.println("(UPDATE) PHASE PLACEMENT ONLINE");
-                    System.out.println("GAME READY " +gameDTO.getReadyPlayer1() + " " + gameDTO.getReadyPlayer2());
-                    if(gameDTO.getReadyPlayer1()){
-                        System.out.println("ENVIO SOCKET EN PHASE PLACEMENT READY player1");
-                    }
-                    if(gameDTO.getReadyPlayer2()){
-                        System.out.println("ENVIO SOCKET EN PHASE PLACEMENT READY player2");
-                    }
-                }
-                case BATTLE -> {
-                    System.out.println("UPDATE PHASE BATTLE");
-                }
-
-            }
-            gameService.sendSocketMessage(gameDTO.getPhase(), gameDTO, null);
-        }
-
+        if(gameDTO.getOnline() && gameDTO.getPhase() == GamePhase.PLACEMENT){
+            gameService.sendSocketMessage(gameDTO.getPhase(), gameDTO, null, null);      }
         gameRepository.save(game);
         return ResponseEntity.ok(new IRestMessage(0, "Partida actualizada", gameDTO));
     }

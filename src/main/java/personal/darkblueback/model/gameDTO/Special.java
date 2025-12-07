@@ -12,6 +12,8 @@ import lombok.Setter;
 public class Special {
     private String special1;
     private String special2;
+    private int counter1;
+    private int counter2;
     private boolean activeSpecial1;
     private boolean activeSpecial2;
 }
