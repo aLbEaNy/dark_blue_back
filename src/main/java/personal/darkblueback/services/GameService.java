@@ -302,15 +302,12 @@ public class GameService {
         } else {
             // 6. Actualizar turno (solo si fallo)
             if (!hit) {
-
-
                 game = specialService.incrementSpecialCounter(game, fireMsg.getMe());
                 specialActive = fireMsg.getMe().equals("player1")
                         ? game.getSpecialPlayer1().isActiveSpecial1()
                         || game.getSpecialPlayer1().isActiveSpecial2()
                         : game.getSpecialPlayer2().isActiveSpecial1()
                         || game.getSpecialPlayer2().isActiveSpecial2();
-
                 if (!specialActive) {
                     game.setTurn(fireMsg.getMe().equals("player1") ? "player2" : "player1");
                 }
