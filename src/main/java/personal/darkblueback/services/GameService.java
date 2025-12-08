@@ -255,44 +255,24 @@ public class GameService {
     }
 
     public GameMessage processFire(FireMessage fireMsg) {
-        Game game = gameRepository.findById(fireMsg.getGameId()).orElseThrow(()->new CustomException("Game not found"));
+        Game game = gameRepository.findById(fireMsg.getGameId())
+                .orElseThrow(() -> new CustomException("Game not found"));
+
         boolean specialActive = false;
-        // 1. Validar que es turno correcto
+
         if (!game.getTurn().equals(fireMsg.getMe())) {
             throw new IllegalStateException("Not your turn!");
         }
-        // 2. Procesar disparo sobre tablero rival
+
         Board boardRival = fireMsg.getMe().equals("player1")
                 ? game.getBoardPlayer2()
                 : game.getBoardPlayer1();
 
         String pos = fireMsg.getPos();
-        boolean hit = false;
 
-        // 3. Buscar si acierta algún submarino
-        ShotResultDTO lastShot = new ShotResultDTO(false, false, false);
-        for (Submarine sub : boardRival.getSubmarines()) {
-            int idx = sub.getPositions().indexOf(pos);
-            if (idx != -1) {
-                hit = true;
-                sub.getIsTouched().set(idx, true);
-                lastShot.setHit(true);
+        ShotResultDTO lastShot = processSingleShot(boardRival, pos);
 
-                // comprobar si ese submarino queda destruido
-                if (sub.getIsTouched().stream().allMatch(Boolean::booleanValue)) {
-                    sub.setIsDestroyed(true);
-                    lastShot.setDestroyed(true);
-                }
-                break;
-            }
-        }
-        if(!lastShot.isHit())
-            lastShot.setMiss(true);
-
-        // 4. Registrar disparo en el tablero rival
-        boardRival.getShots().add(new Shot(pos, hit ? "HIT" : "MISS"));
-
-        // 5. ¿Se acabó la partida?
+        // Fin de partida
         boolean allDestroyed = boardRival.getSubmarines().stream()
                 .allMatch(Submarine::getIsDestroyed);
 
@@ -300,33 +280,30 @@ public class GameService {
             game.setWinner(fireMsg.getMe());
             game.setPhase(GamePhase.END);
         } else {
-            // 6. Actualizar turno (solo si fallo)
-            if (!hit) {
-
-
+            if (!lastShot.isHit()) {
                 game = specialService.incrementSpecialCounter(game, fireMsg.getMe());
+
                 specialActive = fireMsg.getMe().equals("player1")
-                        ? game.getSpecialPlayer1().isActiveSpecial1()
-                        || game.getSpecialPlayer1().isActiveSpecial2()
-                        : game.getSpecialPlayer2().isActiveSpecial1()
-                        || game.getSpecialPlayer2().isActiveSpecial2();
+                        ? game.getSpecialPlayer1().isActiveSpecial1() ||
+                        game.getSpecialPlayer1().isActiveSpecial2()
+                        : game.getSpecialPlayer2().isActiveSpecial1() ||
+                        game.getSpecialPlayer2().isActiveSpecial2();
 
                 if (!specialActive) {
                     game.setTurn(fireMsg.getMe().equals("player1") ? "player2" : "player1");
                 }
             }
-
         }
-        // 7. Persistir cambios
+
         gameRepository.save(game);
 
-        // 8. Construir respuesta
         GameMessage msg = new GameMessage();
         if (specialActive) {
             msg.setType("SPECIAL");
             Special spec = fireMsg.getMe().equals("player1")
                     ? game.getSpecialPlayer1()
                     : game.getSpecialPlayer2();
+
             String activatedSpecial = null;
             Integer slot = null;
             if (spec.isActiveSpecial1()) {
@@ -340,8 +317,9 @@ public class GameService {
             msg.setSpecial(activatedSpecial);
             msg.setSlot(slot);
             msg.setPlayer(fireMsg.getMe());
-        } else
+        } else {
             msg.setType("GAME");
+        }
 
         msg.setPhase(game.getPhase());
         msg.setGame(mapToDTO(game));
@@ -350,6 +328,7 @@ public class GameService {
         return msg;
     }
 
+
     public GameMessage processSpecialFire(String gameId, String me, List<String> positions) {
         Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new CustomException("Game not found"));
@@ -357,56 +336,61 @@ public class GameService {
         Board boardRival = me.equals("player1") ? game.getBoardPlayer2() : game.getBoardPlayer1();
         Special special = me.equals("player1") ? game.getSpecialPlayer1() : game.getSpecialPlayer2();
 
-        List<ShotResultDTO> shotsResults = new ArrayList<>();
+        List<ShotResultDTO> results = new ArrayList<>();
 
         for (String pos : positions) {
-            boolean hit = false;
-            ShotResultDTO resultDTO = new ShotResultDTO(false, false, false);
-
-            for (Submarine sub : boardRival.getSubmarines()) {
-                int idx = sub.getPositions().indexOf(pos);
-                if (idx != -1) {
-                    hit = true;
-                    sub.getIsTouched().set(idx, true);
-                    resultDTO.setHit(true);
-
-                    if (sub.getIsTouched().stream().allMatch(Boolean::booleanValue)) {
-                        sub.setIsDestroyed(true);
-                        resultDTO.setDestroyed(true);
-                    }
-                    break;
-                }
-            }
-
-            if (!hit) resultDTO.setMiss(true);
-
-            boardRival.getShots().add(new Shot(pos, hit ? "HIT" : "MISS"));
-            shotsResults.add(resultDTO);
+            ShotResultDTO result = processSingleShot(boardRival, pos);
+            results.add(result);
         }
 
-        // Comprobar si termina la partida
         boolean allDestroyed = boardRival.getSubmarines().stream()
                 .allMatch(Submarine::getIsDestroyed);
+
         if (allDestroyed) {
             game.setWinner(me);
         }
 
-        // Cambiar turno si no hay otro especial activo
         if (special != null && !special.isActiveSpecial1() && !special.isActiveSpecial2()) {
             game.setTurn(me.equals("player1") ? "player2" : "player1");
         }
 
-        // Persistir cambios
         gameRepository.save(game);
 
-        // Construir respuesta
         GameMessage msg = new GameMessage();
         msg.setType("SPECIAL");
         msg.setPhase(game.getPhase());
         msg.setGame(mapToDTO(game));
-        msg.setMultiShotResults(shotsResults); // lista de resultados de cada disparo
+        msg.setMultiShotResults(results);
 
         return msg;
+    }
+
+
+    private ShotResultDTO processSingleShot(Board boardRival, String pos) {
+        boolean hit = false;
+        ShotResultDTO result = new ShotResultDTO(false, false, false);
+
+        for (Submarine sub : boardRival.getSubmarines()) {
+            int idx = sub.getPositions().indexOf(pos);
+            if (idx != -1) {
+                hit = true;
+                sub.getIsTouched().set(idx, true);
+                result.setHit(true);
+
+                if (sub.getIsTouched().stream().allMatch(Boolean::booleanValue)) {
+                    sub.setIsDestroyed(true);
+                    result.setDestroyed(true);
+                }
+                break;
+            }
+        }
+
+        if (!hit) {
+            result.setMiss(true);
+        }
+
+        boardRival.getShots().add(new Shot(pos, hit ? "HIT" : "MISS"));
+        return result;
     }
 
 
