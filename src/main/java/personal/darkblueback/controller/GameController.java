@@ -105,7 +105,11 @@ public class GameController {
 
     @GetMapping("/exit/{gameId}")
     public boolean exitGame(@PathVariable String gameId) {
+        Game game = gameRepository.findById(gameId).orElseThrow(()->new RuntimeException("Game not found"));
+        if(game.getOnline()){
         gameService.sendSocketExit(gameId);
+        }
+        gameRepository.deleteById(gameId);
         return true;
     }
 
