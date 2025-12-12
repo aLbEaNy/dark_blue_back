@@ -106,6 +106,7 @@ public class GameController {
     @GetMapping("/exit/{gameId}")
     public boolean exitGame(@PathVariable String gameId) {
         gameService.sendSocketExit(gameId);
+        gameRepository.deleteById(gameId);
         return true;
     }
 
